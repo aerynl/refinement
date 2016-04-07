@@ -5,7 +5,7 @@ Easy refinements for use with Laravel. Contains functions for saving filters in 
 ## Quick start
 ```
 composer require aerynl/refinement
-php artisan config:publish aerynl/refinement
+php artisan vendor:publish --provider="Aerynl\Refinement\RefinementServiceProvider"
 ```
 Second command will create `\app\config\packages\aerynl\refinement\config.php` file, where you can specify table connections and filter names.
 
