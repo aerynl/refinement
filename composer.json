@@ -22,5 +22,6 @@
         "psr-0": {
             "Aerynl\\Refinement\\": "src/"
         }
-    }
+    },
+    "minimum-stability": "stable"
 }
