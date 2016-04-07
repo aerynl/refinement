@@ -1,6 +1,6 @@
 # Refinement package
 ## Short description
-Easy refinements for use with Laravel 4. Contains functions for saving filters in Session, generating filter options and fetching filter results.
+Easy refinements for use with Laravel. Contains functions for saving filters in Session, generating filter options and fetching filter results.
 
 ## Quick start
 ```

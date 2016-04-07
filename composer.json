@@ -1,7 +1,7 @@
 {
     "name": "aerynl/refinement",
     "version": "1.0.4",
-    "description": "Easy refinements for use with Laravel 4",
+    "description": "Easy refinements for use with Laravel",
     "homepage": "http://github.com/aerynl/refinement",
     "license": "MIT",
     "authors": [
