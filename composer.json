@@ -3,7 +3,9 @@
     "version": "1.0.4",
     "description": "Easy refinements for use with Laravel",
     "homepage": "http://github.com/aerynl/refinement",
+    "type": "library",
     "license": "MIT",
+    "keywords": ["laravel", "refinement"],
     "authors": [
         {
             "name": "Kay Lucas",
@@ -14,12 +16,8 @@
           "email": "lespavl@gmail.com"
         }
     ],
-    "require": {
-        "php": ">=5.3.0",
-        "illuminate/support": "4.*|5.*"
-    },
     "autoload": {
-        "psr-0": {
+        "psr-4": {
             "Aerynl\\Refinement\\": "src/"
         }
     },
