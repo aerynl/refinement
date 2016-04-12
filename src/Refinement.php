@@ -90,7 +90,7 @@ class Refinement
         $current_table = strtolower(Pluralizer::plural($current_model));
         $full_refinements_array = \Session::has($session_name) ? \Session::get($session_name) : array();
         $current_model_id = \App::make($current_model)->getKeyName();
-        $titles = Config::get('refinement::titles');
+        $titles = Config::get('refinement.titles');
 
         /* remember tables, which will be added by refinements function */
         $already_joined = array();
@@ -219,7 +219,7 @@ class Refinement
      * @return Illuminate\Database\Query\Builder $query - Query Builder object
      */
     private static function joinTableToQuery($query, $join_table_name, $current_table) {
-        $config_joins = Config::get('refinement::joins');
+        $config_joins = Config::get('refinement.joins');
 
         /* first we need to find join statement in configuration array */
         $join_statement = array();
