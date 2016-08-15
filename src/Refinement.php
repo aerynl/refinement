@@ -64,8 +64,13 @@ class Refinement
             }
 
             foreach ($refinement as $refinement_column => $refinement_values) {
-                $query = $query->whereIn($refinement_table . '.' . $refinement_column, $refinement_values);
+                $query->where(function ($query) use ($refinement_values, $refinement_table, $refinement_column) {
+                    foreach ($refinement_values as $value) {
+                        $query->orWhere($refinement_table . '.' . $refinement_column, '=', $value < 0 ? null : $value);
+                    }
+                });
             }
+
         }
 
         return $query;
@@ -172,9 +177,12 @@ class Refinement
                 /* finally getting records */
                 $options_records = self::getArrayFromQuery($option_query);
                 foreach ($options_records as $option_record) {
+                    $option_record->option_id = (is_null($option_record->option_id) && $option_scheme['filter_null']) ? -1 : $option_record->option_id;
                     if (empty($option_data['options'][$option_record->option_id])) {
                         $option_data['options'][$option_record->option_id] = array(
-                            'name' => $option_record->option_name,
+                            'name' => ($option_record->option_id < 0 && $option_scheme['filter_null'])
+                                ? trans('refinements.not_set')
+                                : $option_record->option_name,
                             'id' => $option_record->option_id,
                             'count' => 0,
                             'checked' => in_array($option_record->option_id, $selected_options_array)
