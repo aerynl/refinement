@@ -176,6 +176,7 @@ class Refinement
 
                 /* finally getting records */
                 $options_records = self::getArrayFromQuery($option_query);
+                $option_scheme['filter_null'] = isset($option_scheme['filter_null']) ? $option_scheme['filter_null'] : false;
                 foreach ($options_records as $option_record) {
                     $option_record->option_id = (is_null($option_record->option_id) && $option_scheme['filter_null']) ? -1 : $option_record->option_id;
                     if (empty($option_data['options'][$option_record->option_id])) {
