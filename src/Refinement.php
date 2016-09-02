@@ -45,6 +45,7 @@ class Refinement
 
         $already_joined = array();
         if (!empty($additional_joins)) {
+
             foreach ($additional_joins as $additional_join) {
                 $query = self::joinTableToQuery($query, $additional_join, $current_table);
                 $already_joined[] = $additional_join;
@@ -52,20 +53,31 @@ class Refinement
         }
 
         $refinements = empty($refinements_array) ? \Session::get($session_name) : $refinements_array;
-        if (empty($refinements)) return $query;
 
+        if (empty($refinements)) return $query;
         foreach ($refinements as $refinement_table => $refinement) {
             $refinement_model = ucfirst(Pluralizer::singular($refinement_table));
 
             if ($current_model != $refinement_model && !in_array($refinement_table, $already_joined)) {
+
                 /* in this case we need to join the table to be able to filter by it */
                 $query = self::joinTableToQuery($query, $refinement_table, $current_table);
+
                 $already_joined[] = $refinement_table;
             }
 
             foreach ($refinement as $refinement_column => $refinement_values) {
+
                 $query->where(function ($query) use ($refinement_values, $refinement_table, $refinement_column) {
+
+                    $text_columns = Config::get('refinement.filter_types.text_columns');
+
                     foreach ($refinement_values as $value) {
+
+                        if(is_array($text_columns) && in_array($refinement_table.'|'.$refinement_column, $text_columns)){
+                            $value = base64_decode($value);
+                        }
+
                         $query->orWhere($refinement_table . '.' . $refinement_column, '=', $value < 0 ? null : $value);
                     }
                 });
@@ -143,10 +155,12 @@ class Refinement
 
                     $option_query = self::joinTableToQuery($option_query, $option_scheme['parent_table'], $current_table);
                     $already_joined[] = $option_scheme['parent_table'];
+
                 }
 
                 /* add option child table if needed */
                 if (!empty($option_scheme['join_table']) && $current_table != $option_scheme['join_table']) {
+
                     $join_statement = array(
                         'left' => "{$option_scheme['parent_table']}.{$option_scheme['filter_column']}",
                         'operand' => "=",
@@ -159,11 +173,20 @@ class Refinement
 
                 /* add specific for this option selects */
                 if (empty($option_scheme['join_table'])) {
+
                     $option_name = $option_scheme['parent_table'] . "." . $option_scheme['filter_value'];
                     $option_id = $option_scheme['parent_table'] . "." . $option_scheme['filter_value'];
+
                 } else {
+
                     $option_name = $option_scheme['join_table'] . "." . $option_scheme['filter_value'];
                     $option_id = $option_scheme['join_table'] . ".id";
+
+                }
+
+                if(isset($option_scheme['filter_type']) == 'column_text'){
+                    $option_name = $option_scheme['parent_table'].".".$option_scheme['filter_column'];
+                    $option_id = $option_scheme['parent_table'].".".$option_scheme['filter_column'];
                 }
 
                 /* define order by clause */
@@ -176,9 +199,21 @@ class Refinement
 
                 /* finally getting records */
                 $options_records = self::getArrayFromQuery($option_query);
+
+
                 $option_scheme['filter_null'] = isset($option_scheme['filter_null']) ? $option_scheme['filter_null'] : false;
                 foreach ($options_records as $option_record) {
-                    $option_record->option_id = (is_null($option_record->option_id) && $option_scheme['filter_null']) ? -1 : $option_record->option_id;
+
+                    //set for null values for work with separated filters need to be removed
+                    $option_record->option_id = (is_null($option_record->option_id) && $option_scheme['filter_null'])
+                        ? -1
+                        : $option_record->option_id;
+
+                    //encode value for text options
+                    $option_record->option_id = (isset($option_scheme['filter_type']) && $option_scheme['filter_type'] == 'text_column')
+                        ? base64_encode($option_record->option_id)
+                        : $option_record->option_id;
+
                     if (empty($option_data['options'][$option_record->option_id])) {
                         $option_data['options'][$option_record->option_id] = array(
                             'name' => ($option_record->option_id < 0 && $option_scheme['filter_null'])
@@ -186,7 +221,7 @@ class Refinement
                                 : $option_record->option_name,
                             'id' => $option_record->option_id,
                             'count' => 0,
-                            'checked' => in_array($option_record->option_id, $selected_options_array)
+                            'checked' => in_array($option_record->option_id, $selected_options_array),
                         );
                     }
                     $option_data['options'][$option_record->option_id]['count'] += (!empty($option_scheme['distinct']) ? 1 : $option_record->option_count);
@@ -197,6 +232,7 @@ class Refinement
                 \Log::error($e);
             }
         }
+
 
         return $options_array;
     }
@@ -214,7 +250,6 @@ class Refinement
             $value = is_numeric($binding) ? $binding : "'" . $binding . "'";
             $sql = preg_replace('/\?/', $value, $sql, 1);
         }
-
         $results = \DB::select($sql);
 
         return $results;
