@@ -30,9 +30,10 @@ class Refinement
      */
     public static function getRefinedQuery($current_model, $session_name = "", $eager = array(), $additional_wheres = array(), $additional_joins = array(), $refinements_array = array())
     {
-        if (empty($current_model)) return false;
+        $current_instance = new $current_model;
+        if (! $current_instance ) return false;
 
-        $current_table = strtolower(Pluralizer::plural($current_model));
+        $current_table = $current_instance->getTable();
 
         if (!is_array($eager)) $eager = array($eager);
         $query = $current_model::with($eager);
@@ -55,8 +56,10 @@ class Refinement
         $refinements = empty($refinements_array) ? \Session::get($session_name) : $refinements_array;
 
         if (empty($refinements)) return $query;
+
         foreach ($refinements as $refinement_table => $refinement) {
-            $refinement_model = ucfirst(Pluralizer::singular($refinement_table));
+
+            $refinement_model = self::getClassByTable($refinement_table);
 
             if ($current_model != $refinement_model && !in_array($refinement_table, $already_joined)) {
 
@@ -80,6 +83,7 @@ class Refinement
 
                         $query->orWhere($refinement_table . '.' . $refinement_column, '=', $value < 0 ? null : $value);
                     }
+
                 });
             }
 
@@ -101,12 +105,13 @@ class Refinement
      */
     public static function generateOptionsArray($current_model, $options_scheme = array(), $session_name = "", $eager = array(), $additional_wheres = array(), $additional_joins = array())
     {
-        if (empty($options_scheme) || empty($current_model)) return array();
+        $current_instance = new $current_model;
+        if (!$current_instance) return array();
 
         $options_array = array();
-        $current_table = strtolower(Pluralizer::plural($current_model));
+        $current_table = $current_instance->getTable();
         $full_refinements_array = \Session::has($session_name) ? \Session::get($session_name) : array();
-        $current_model_id = \App::make($current_model)->getKeyName();
+        $current_model_id = $current_instance->getKeyName();
         $titles = Config::get('refinement.titles');
 
         /* remember tables, which will be added by refinements function */
@@ -149,7 +154,7 @@ class Refinement
                 $option_query = self::getRefinedQuery($current_model, "", $eager, $option_additional_wheres, $additional_joins, $option_refinements_array);
 
                 /* add option parent table if we haven't joined before */
-                $option_parent_model = ucfirst(Pluralizer::singular($option_scheme['parent_table']));
+                $option_parent_model = self::getClassByTable($option_scheme['parent_table']);
                 if ($current_model != $option_parent_model && empty($option_refinements_array[$option_scheme['parent_table']])
                     && !in_array($option_scheme['parent_table'], $already_joined)) {
 
@@ -281,5 +286,17 @@ class Refinement
         if (empty($join_statement)) return $query;
 
         return $query->join($join_table_name, $join_statement['left'], $join_statement['operand'], $join_statement['right']);
+    }
+
+    /**
+     * @param $table_name
+     * @return mixed
+     */
+    private static function getClassByTable($table_name) {
+
+        $class = Config::get('refinement.table_map.'.$table_name);
+
+        return $class ?: ucfirst(Pluralizer::singular($table_name));
+
     }
 }
