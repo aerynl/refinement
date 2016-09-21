@@ -28,7 +28,7 @@ class Refinement
      * @param array $refinements_array - in case you want to filter not by session, but some specific array
      * @return \Illuminate\Database\Query\Builder $query - Query Builder object
      */
-    public static function getRefinedQuery($current_model, $session_name = "", $eager = array(), $additional_wheres = array(), $additional_joins = array(), $refinements_array = array())
+    public static function getRefinedQuery($current_model, $session_name = "", $eager = array(), $additional_wheres = array(), $additional_joins = array(), $refinements_array = array(), $join_type='inner')
     {
         $current_instance = new $current_model;
         if (! $current_instance ) return false;
@@ -48,7 +48,7 @@ class Refinement
         if (!empty($additional_joins)) {
 
             foreach ($additional_joins as $additional_join) {
-                $query = self::joinTableToQuery($query, $additional_join, $current_table);
+                $query = self::joinTableToQuery($query, $additional_join, $current_table, $join_type);
                 $already_joined[] = $additional_join;
             }
         }
@@ -128,7 +128,9 @@ class Refinement
         $already_joined = array();
         if (!empty($additional_joins)) $already_joined = $additional_joins;
         foreach ($options_scheme as $option_key => $option_scheme) {
+
             try {
+
                 $titles_key = $option_scheme['parent_table'] . "|" . $option_scheme['filter_column'];
 
                 $option_data = array(
@@ -172,6 +174,7 @@ class Refinement
 
                 }
 
+
                 /* add option child table if needed */
                 if (!empty($option_scheme['join_table']) && $current_table != $option_scheme['join_table']) {
 
@@ -184,6 +187,7 @@ class Refinement
                     $option_query = $option_query->leftJoin($option_scheme['join_table'],
                         $join_statement['left'], $join_statement['operand'], $join_statement['right']);
                 }
+
 
                 /* add specific for this option selects */
                 if (empty($option_scheme['join_table'])) {
@@ -246,7 +250,6 @@ class Refinement
                     }
                     $option_data['options'][$option_record->option_id]['count'] += (!empty($option_scheme['distinct']) ? 1 : $option_record->option_count);
                 }
-
                 $options_array[] = $option_data;
             } catch (\Exception $e) {
                 \Log::error($e);
