@@ -59,10 +59,20 @@ class Refinement
 
         foreach ($refinements as $refinement_table => $refinement) {
 
+            //hardcoded changes for the boom prokect
+            if($refinement_table == 'maintenances'){
+
+                $query->leftJoin('maintenances', 'elements.id', '=', 'maintenances.element_id')->groupBy('elements.id', 'maintenances.element_id', 'maintenances.id');
+                foreach ($additional_joins as $table){
+                    $query->groupBy($table.'.id');
+                }
+                $query->havingRaw('COUNT(maintenances.element_id) < 1');
+                continue;
+            }
+
             $refinement_model = self::getClassByTable($refinement_table);
 
             if ($current_model != $refinement_model && !in_array($refinement_table, $already_joined)) {
-
                 /* in this case we need to join the table to be able to filter by it */
                 $query = self::joinTableToQuery($query, $refinement_table, $current_table);
 
@@ -117,7 +127,6 @@ class Refinement
         /* remember tables, which will be added by refinements function */
         $already_joined = array();
         if (!empty($additional_joins)) $already_joined = $additional_joins;
-
         foreach ($options_scheme as $option_key => $option_scheme) {
             try {
                 $titles_key = $option_scheme['parent_table'] . "|" . $option_scheme['filter_column'];
@@ -157,8 +166,8 @@ class Refinement
                 $option_parent_model = self::getClassByTable($option_scheme['parent_table']);
                 if ($current_model != $option_parent_model && empty($option_refinements_array[$option_scheme['parent_table']])
                     && !in_array($option_scheme['parent_table'], $already_joined)) {
-
-                    $option_query = self::joinTableToQuery($option_query, $option_scheme['parent_table'], $current_table);
+                    $join_type = (isset($option_scheme['join_type']) && in_array($option_scheme['join_type'], ['inner', 'left', 'right'])) ? $option_scheme['join_type'] : 'inner';
+                    $option_query = self::joinTableToQuery($option_query, $option_scheme['parent_table'], $current_table, $join_type);
                     $already_joined[] = $option_scheme['parent_table'];
 
                 }
@@ -189,10 +198,11 @@ class Refinement
 
                 }
 
-                if(isset($option_scheme['filter_type']) == 'column_text'){
+                if(isset($option_scheme['filter_type']) && $option_scheme['filter_type'] == 'column_text'){
                     $option_name = $option_scheme['parent_table'].".".$option_scheme['filter_column'];
                     $option_id = $option_scheme['parent_table'].".".$option_scheme['filter_column'];
                 }
+
 
                 /* define order by clause */
                 $option_order_by = (empty($option_scheme['order_by'])) ? $option_name : $option_scheme['order_by'];
@@ -202,15 +212,20 @@ class Refinement
                     \DB::raw("COUNT(1) as option_count, {$option_name} as option_name, {$option_id} as option_id")
                 )->groupBy($option_id, $current_table . "." . $current_model_id)->orderBy($option_order_by);
 
+                if(isset($option_scheme['havingRaw'])){
+                    $option_query->havingRaw($option_scheme['havingRaw']);
+                }
+
                 /* finally getting records */
                 $options_records = self::getArrayFromQuery($option_query);
+
 
 
                 $option_scheme['filter_null'] = isset($option_scheme['filter_null']) ? $option_scheme['filter_null'] : false;
                 foreach ($options_records as $option_record) {
 
                     //set for null values for work with separated filters need to be removed
-                    $option_record->option_id = (is_null($option_record->option_id) && $option_scheme['filter_null'])
+                    $option_record->option_id = $option_scheme['filter_null']
                         ? -1
                         : $option_record->option_id;
 
@@ -265,9 +280,10 @@ class Refinement
      * @param \Illuminate\Database\Query\Builder $query - Query Builder object - main query
      * @param $join_table_name - table we need to join
      * @param $current_table - table we join to
+     * @param $type - inner, left, right
      * @return Illuminate\Database\Query\Builder $query - Query Builder object
      */
-    private static function joinTableToQuery($query, $join_table_name, $current_table) {
+    private static function joinTableToQuery($query, $join_table_name, $current_table, $type = 'inner') {
         $config_joins = Config::get('refinement.joins');
 
         /* first we need to find join statement in configuration array */
@@ -285,7 +301,7 @@ class Refinement
         /* if there is no record in config array for this table, skip it */
         if (empty($join_statement)) return $query;
 
-        return $query->join($join_table_name, $join_statement['left'], $join_statement['operand'], $join_statement['right']);
+        return $query->join($join_table_name, $join_statement['left'], $join_statement['operand'], $join_statement['right'], $type);
     }
 
     /**
