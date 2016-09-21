@@ -198,7 +198,7 @@ class Refinement
 
                 }
 
-                if(isset($option_scheme['filter_type']) && $option_scheme['filter_type'] == 'column_text'){
+                if(isset($option_scheme['filter_type']) && $option_scheme['filter_type'] == 'text_column'){
                     $option_name = $option_scheme['parent_table'].".".$option_scheme['filter_column'];
                     $option_id = $option_scheme['parent_table'].".".$option_scheme['filter_column'];
                 }
