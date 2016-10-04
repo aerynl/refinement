@@ -60,7 +60,7 @@ class Refinement
         foreach ($refinements as $refinement_table => $refinement) {
 
             //hardcoded changes for the boom prokect
-            if($refinement_table == 'maintenances'){
+            if($refinement_table == 'maintenances' && $current_model != 'Maintenance'){
 
                 $query->leftJoin('maintenances', 'elements.id', '=', 'maintenances.element_id')->groupBy('elements.id', 'maintenances.element_id', 'maintenances.id');
                 foreach ($additional_joins as $table){
@@ -229,7 +229,7 @@ class Refinement
                 foreach ($options_records as $option_record) {
 
                     //set for null values for work with separated filters need to be removed
-                    $option_record->option_id = $option_scheme['filter_null']
+                    $option_record->option_id = ($option_scheme['filter_null'] && is_null($option_record->option_id))
                         ? -1
                         : $option_record->option_id;
 
