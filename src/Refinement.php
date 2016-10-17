@@ -229,7 +229,7 @@ class Refinement
                 foreach ($options_records as $option_record) {
 
                     //set for null values for work with separated filters need to be removed
-                    $option_record->option_id = ($option_scheme['filter_null'] && is_null($option_record->option_id))
+                    $option_record->option_id = ($option_scheme['filter_null'] && is_null($option_record->option_id) || isset($option_scheme['havingRaw']))
                         ? -1
                         : $option_record->option_id;
 
@@ -238,7 +238,7 @@ class Refinement
                         ? base64_encode($option_record->option_id)
                         : $option_record->option_id;
 
-                    if (empty($option_data['options'][$option_record->option_id])) {
+                    if (empty($option_data['options'][$option_record->option_id]) ||isset($option_scheme['havingRaw']) ){
                         $option_data['options'][$option_record->option_id] = array(
                             'name' => ($option_record->option_id < 0 && $option_scheme['filter_null'])
                                 ? trans('refinements.not_set')
@@ -249,6 +249,9 @@ class Refinement
                         );
                     }
                     $option_data['options'][$option_record->option_id]['count'] += (!empty($option_scheme['distinct']) ? 1 : $option_record->option_count);
+                }
+                if(isset($option_scheme['havingRaw'])){
+                    $option_data['options'][-1]['count'] = count($options_records);
                 }
                 $options_array[] = $option_data;
             } catch (\Exception $e) {
