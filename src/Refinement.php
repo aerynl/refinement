@@ -238,6 +238,10 @@ class Refinement
                         ? base64_encode($option_record->option_id)
                         : $option_record->option_id;
 
+                    if($option_record->option_name == '' && $option_scheme['filter_type'] == 'text_column'){
+                        $option_record->option_name = trans('refinements.not_set');
+                    }
+
                     if (empty($option_data['options'][$option_record->option_id]) ||isset($option_scheme['havingRaw']) ){
                         $option_data['options'][$option_record->option_id] = array(
                             'name' => ($option_record->option_id < 0 && $option_scheme['filter_null'])
