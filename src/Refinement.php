@@ -311,6 +311,10 @@ class Refinement
         /* if there is no record in config array for this table, skip it */
         if (empty($join_statement)) return $query;
 
+        if($current_table == 'maintenances' &&  $join_table_name == 'subsidies'){
+            $type = 'left';
+        }
+
         return $query->join($join_table_name, $join_statement['left'], $join_statement['operand'], $join_statement['right'], $type);
     }
 
