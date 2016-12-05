@@ -226,6 +226,7 @@ class Refinement
 
 
                 $option_scheme['filter_null'] = isset($option_scheme['filter_null']) ? $option_scheme['filter_null'] : false;
+                $optionSortNumber = 1;
                 foreach ($options_records as $option_record) {
 
                     //set for null values for work with separated filters need to be removed
@@ -241,9 +242,8 @@ class Refinement
                     if($option_record->option_name == '' && $option_scheme['filter_type'] == 'text_column'){
                         $option_record->option_name = trans('refinements.not_set');
                     }
-
-                    if (empty($option_data['options'][$option_record->option_id]) ||isset($option_scheme['havingRaw']) ){
-                        $option_data['options'][$option_record->option_id] = array(
+                    if (empty($option_data['options'][$optionSortNumber]) ||isset($option_scheme['havingRaw']) ){
+                        $option_data['options'][$optionSortNumber] = array(
                             'name' => ($option_record->option_id < 0 && $option_scheme['filter_null'])
                                 ? trans('refinements.not_set')
                                 : $option_record->option_name,
@@ -252,7 +252,11 @@ class Refinement
                             'checked' => in_array($option_record->option_id, $selected_options_array),
                         );
                     }
-                    $option_data['options'][$option_record->option_id]['count'] += (!empty($option_scheme['distinct']) ? 1 : $option_record->option_count);
+                    $option_data['options'][$optionSortNumber]['count'] += (!empty($option_scheme['distinct']) ? 1 : $option_record->option_count);
+
+                    if($option_record->option_id != $option_data['options'][$optionSortNumber]['id']){
+                        $optionSortNumber++;
+                    }
                 }
                 if(isset($option_scheme['havingRaw'])){
                     $option_data['options'][-1]['count'] = count($options_records);
