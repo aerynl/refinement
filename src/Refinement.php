@@ -212,9 +212,17 @@ class Refinement
                 $option_order_by = (empty($option_scheme['order_by'])) ? $option_name : $option_scheme['order_by'];
 
                 /* TODO: a soon as this issue is fixed, rewrite to have options counted by sql https://github.com/sleeping-owl/with-join/issues/10 */
+                /* We want to count the id's from the parent table in case of a join, this will result in a proper count, even for the parent_table items that have a null value for this row.
+                If the parent table doesn't exist, count on the $option_id column. */
+                $count_column = $option_id;
+                if(isset($option_scheme['parent_table'])) {
+                    $count_column = $option_scheme['parent_table'].'.id';
+                }
+
                 $option_query = $option_query->select(
-                    \DB::raw("COUNT({$option_name}) as option_count, {$option_name} as option_name, {$option_id} as option_id")
+                    \DB::raw("COUNT({$count_column}) as option_count, {$option_name} as option_name, {$option_id} as option_id")
                 )->groupBy($option_id)->orderBy($option_order_by);
+
 
                 if(isset($option_scheme['havingRaw'])){
                     $option_query->havingRaw($option_scheme['havingRaw']);
@@ -223,11 +231,12 @@ class Refinement
                 /* finally getting records */
                 $options_records = self::getArrayFromQuery($option_query);
 
-
-
                 $option_scheme['filter_null'] = isset($option_scheme['filter_null']) ? $option_scheme['filter_null'] : false;
                 $optionSortNumber = 1;
                 foreach ($options_records as $option_record) {
+                    if(is_null($option_record->option_name)){
+                        continue;
+                    }
                     //set for null values for work with separated filters need to be removed
                     $option_record->option_id = ($option_scheme['filter_null'] && is_null($option_record->option_id) || isset($option_scheme['havingRaw']))
                         ? -1
@@ -241,9 +250,10 @@ class Refinement
                     if($option_record->option_name == '' && $option_scheme['filter_type'] == 'text_column'){
                         $option_record->option_name = trans('refinements.not_set');
                     }
-                    if (empty($option_data['options'][$optionSortNumber]) ||isset($option_scheme['havingRaw']) ){
+
+                    if (empty($option_data['options'][$optionSortNumber]) || isset($option_scheme['havingRaw']) ){
                         $option_data['options'][$optionSortNumber] = array(
-                            'name' => ($option_record->option_id < 0 && $option_scheme['filter_null'])
+                            'name' => (is_null($option_record->option_name) && $option_scheme['filter_null'])
                                 ? trans('refinements.not_set')
                                 : $option_record->option_name,
                             'id' => $option_record->option_id,
@@ -252,10 +262,10 @@ class Refinement
                         );
                     }
                     $option_data['options'][$optionSortNumber]['count'] += (!empty($option_scheme['distinct']) ? 1 : $option_record->option_count);
-
+                    
                     $optionSortNumber++;
                 }
-                // dd($option_data);
+
                 if(isset($option_scheme['havingRaw'])){
                     $option_data['options'][-1]['count'] = count($options_records);
                 }
