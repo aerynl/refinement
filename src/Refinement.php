@@ -213,8 +213,8 @@ class Refinement
 
                 /* TODO: a soon as this issue is fixed, rewrite to have options counted by sql https://github.com/sleeping-owl/with-join/issues/10 */
                 $option_query = $option_query->select(
-                    \DB::raw("COUNT(1) as option_count, {$option_name} as option_name, {$option_id} as option_id")
-                )->groupBy($option_id, $current_table . "." . $current_model_id)->orderBy($option_order_by);
+                    \DB::raw("COUNT({$option_name}) as option_count, {$option_name} as option_name, {$option_id} as option_id")
+                )->groupBy($option_id)->orderBy($option_order_by);
 
                 if(isset($option_scheme['havingRaw'])){
                     $option_query->havingRaw($option_scheme['havingRaw']);
@@ -228,7 +228,6 @@ class Refinement
                 $option_scheme['filter_null'] = isset($option_scheme['filter_null']) ? $option_scheme['filter_null'] : false;
                 $optionSortNumber = 1;
                 foreach ($options_records as $option_record) {
-
                     //set for null values for work with separated filters need to be removed
                     $option_record->option_id = ($option_scheme['filter_null'] && is_null($option_record->option_id) || isset($option_scheme['havingRaw']))
                         ? -1
@@ -254,10 +253,9 @@ class Refinement
                     }
                     $option_data['options'][$optionSortNumber]['count'] += (!empty($option_scheme['distinct']) ? 1 : $option_record->option_count);
 
-                    if($option_record->option_id != $option_data['options'][$optionSortNumber]['id']){
-                        $optionSortNumber++;
-                    }
+                    $optionSortNumber++;
                 }
+                // dd($option_data);
                 if(isset($option_scheme['havingRaw'])){
                     $option_data['options'][-1]['count'] = count($options_records);
                 }
