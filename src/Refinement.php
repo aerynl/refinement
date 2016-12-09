@@ -224,6 +224,7 @@ class Refinement
                 )->groupBy($option_id)->orderBy($option_order_by);
 
 
+
                 if(isset($option_scheme['havingRaw'])){
                     $option_query->havingRaw($option_scheme['havingRaw']);
                 }
@@ -232,7 +233,17 @@ class Refinement
                 $options_records = self::getArrayFromQuery($option_query);
 
                 $option_scheme['filter_null'] = isset($option_scheme['filter_null']) ? $option_scheme['filter_null'] : false;
+
+                // @TODO fix no maintenance set bug
+                // if(isset($option_scheme['filter_null']) && $option_scheme['parent_table'] == "maintenances") {
+                //     dd($option_scheme, $options_records);
+                // }
+
+                // dd($option_scheme, $options_records);
+
                 $optionSortNumber = 1;
+                // dd($options_records);
+
                 foreach ($options_records as $option_record) {
                     if(is_null($option_record->option_name)){
                         continue;
@@ -251,6 +262,7 @@ class Refinement
                         $option_record->option_name = trans('refinements.not_set');
                     }
 
+                    // dd(empty($option_data['options'][$optionSortNumber]), $options_records);
                     if (empty($option_data['options'][$optionSortNumber]) || isset($option_scheme['havingRaw']) ){
                         $option_data['options'][$optionSortNumber] = array(
                             'name' => (is_null($option_record->option_name) && $option_scheme['filter_null'])
@@ -261,11 +273,21 @@ class Refinement
                             'checked' => in_array($option_record->option_id, $selected_options_array),
                         );
                     }
+
                     $option_data['options'][$optionSortNumber]['count'] += (!empty($option_scheme['distinct']) ? 1 : $option_record->option_count);
+
+                    // dd($option_scheme['filter_null'], $options_records);
+
+                    // $optionSortNumber > 5 ? dd($options_records) : ;
+                    if($optionSortNumber > 4) {
+                        // dd($options_records);
+                    }
                     
                     $optionSortNumber++;
                 }
 
+                // dd("WTF");
+                // dd($option_data);
                 if(isset($option_scheme['havingRaw'])){
                     $option_data['options'][-1]['count'] = count($options_records);
                 }
@@ -287,6 +309,7 @@ class Refinement
     private static function getArrayFromQuery($query)
     {
         $sql = $query->toSql();
+        // dd($sql);
 
         foreach ($query->getBindings() as $binding) {
             $value = is_numeric($binding) ? $binding : "'" . $binding . "'";
