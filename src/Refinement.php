@@ -164,6 +164,8 @@ class Refinement
                 /* generate query with updated refinements */
                 $option_query = self::getRefinedQuery($current_model, "", $eager, $option_additional_wheres, $additional_joins, $option_refinements_array);
 
+                // dd($option_query->toSql());
+
                 /* add option parent table if we haven't joined before */
                 $option_parent_model = self::getClassByTable($option_scheme['parent_table']);
                 if ($current_model != $option_parent_model && empty($option_refinements_array[$option_scheme['parent_table']])
@@ -219,14 +221,17 @@ class Refinement
                     $count_column = $option_scheme['parent_table'].'.id';
                 }
 
+                // dd($option_query->toSql());
+
                 $option_query = $option_query->select(
                     \DB::raw("COUNT({$count_column}) as option_count, {$option_name} as option_name, {$option_id} as option_id")
                 )->groupBy($option_id)->orderBy($option_order_by);
 
-
+                // dd($option_id, $option_query->toSql());
 
                 if(isset($option_scheme['havingRaw'])){
                     $option_query->havingRaw($option_scheme['havingRaw']);
+                    // dd($option_query->toSql());
                 }
 
                 /* finally getting records */
@@ -239,15 +244,28 @@ class Refinement
                 //     dd($option_scheme, $options_records);
                 // }
 
-                // dd($option_scheme, $options_records);
-
                 $optionSortNumber = 1;
-                // dd($options_records);
+                
+                // dd($option_scheme, $option_scheme['havingRaw']);
+
+                // When a refinedQuery with having (means havingRaw option query has been executed) in it is 
+                // active we get back the wrong results. To fix this we create a unique array of items from the 
+                // results and count the values of duplicates so we can use this to create our refinements.
+                $havingCount = null;
+                if(strpos($option_query->toSql(), 'having') !== false && !isset($option_scheme['havingRaw'])) {
+                    $havingCount = array_count_values(array_map(function($foo){
+                        return $foo->option_id;
+                    }, $options_records));
+
+                    $options_records = array_unique($options_records, SORT_REGULAR);
+                    // dd($options_records);
+                }
 
                 foreach ($options_records as $option_record) {
                     if(is_null($option_record->option_name)){
-                        continue;
+                        $option_record->option_name = trans('refinements.not_set');
                     }
+
                     //set for null values for work with separated filters need to be removed
                     $option_record->option_id = ($option_scheme['filter_null'] && is_null($option_record->option_id) || isset($option_scheme['havingRaw']))
                         ? -1
@@ -262,7 +280,7 @@ class Refinement
                         $option_record->option_name = trans('refinements.not_set');
                     }
 
-                    // dd(empty($option_data['options'][$optionSortNumber]), $options_records);
+                    
                     if (empty($option_data['options'][$optionSortNumber]) || isset($option_scheme['havingRaw']) ){
                         $option_data['options'][$optionSortNumber] = array(
                             'name' => (is_null($option_record->option_name) && $option_scheme['filter_null'])
@@ -274,23 +292,28 @@ class Refinement
                         );
                     }
 
+                    // Add the havingcount to the filters, withdraw one because somehow we always count 1 too much
+                    if($havingCount && !isset($option_scheme['havingRaw'])) {
+                        $option_data['options'][$optionSortNumber]['count'] = $havingCount[$option_data['options'][$optionSortNumber]['id']] - 1;
+                    }
+
                     $option_data['options'][$optionSortNumber]['count'] += (!empty($option_scheme['distinct']) ? 1 : $option_record->option_count);
 
-                    // dd($option_scheme['filter_null'], $options_records);
+                    // Just count the # results when doing a havingRaw query and only show one item in the menu
+                    if(isset($option_scheme['havingRaw'])){
+                        $option_data['options'][$optionSortNumber]['name'] = trans('refinements.not_set');
+                        $option_data['options'][$optionSortNumber]['count'] = count($options_records);
 
-                    // $optionSortNumber > 5 ? dd($options_records) : ;
-                    if($optionSortNumber > 4) {
-                        // dd($options_records);
+                        // Break the loop, we only need to do this for one iteration
+                        break;
                     }
                     
                     $optionSortNumber++;
                 }
 
-                // dd("WTF");
-                // dd($option_data);
-                if(isset($option_scheme['havingRaw'])){
-                    $option_data['options'][-1]['count'] = count($options_records);
-                }
+                // if(isset($option_scheme['havingRaw'])){
+                //     $option_data['options'][-1]['count'] = count($options_records);
+                // }
                 $options_array[] = $option_data;
             } catch (\Exception $e) {
                 \Log::error($e);
@@ -309,7 +332,6 @@ class Refinement
     private static function getArrayFromQuery($query)
     {
         $sql = $query->toSql();
-        // dd($sql);
 
         foreach ($query->getBindings() as $binding) {
             $value = is_numeric($binding) ? $binding : "'" . $binding . "'";
