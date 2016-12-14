@@ -219,6 +219,11 @@ class Refinement
                 $count_column = $option_id;
                 if(isset($option_scheme['parent_table'])) {
                     $count_column = $option_scheme['parent_table'].'.id';
+
+                    // Fix specifically for element_maps which doesn't have an id column, should be generalized and added as an option
+                    if($option_scheme['parent_table'] == 'elements_maps') {
+                        $count_column = $option_scheme['parent_table'].'.map_id';                        
+                    }
                 }
 
                 // dd($option_query->toSql());
@@ -261,6 +266,10 @@ class Refinement
                     // dd($options_records);
                 }
 
+                // if($option_scheme['parent_table'] == 'elements_maps') {
+                //     dd($option_query->toSql());
+                // }
+
                 foreach ($options_records as $option_record) {
                     if(is_null($option_record->option_name)){
                         $option_record->option_name = trans('refinements.not_set');
@@ -287,7 +296,7 @@ class Refinement
                                 ? trans('refinements.not_set')
                                 : $option_record->option_name,
                             'id' => $option_record->option_id,
-                            'count' => 0,
+                            'count' => $option_record->option_count,
                             'checked' => in_array($option_record->option_id, $selected_options_array),
                         );
                     }
@@ -297,7 +306,7 @@ class Refinement
                         $option_data['options'][$optionSortNumber]['count'] = $havingCount[$option_data['options'][$optionSortNumber]['id']] - 1;
                     }
 
-                    $option_data['options'][$optionSortNumber]['count'] += (!empty($option_scheme['distinct']) ? 1 : $option_record->option_count);
+                    // $option_data['options'][$optionSortNumber]['count'] += (!empty($option_scheme['distinct']) ? 1 : $option_record->option_count);
 
                     // Just count the # results when doing a havingRaw query and only show one item in the menu
                     if(isset($option_scheme['havingRaw'])){
