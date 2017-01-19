@@ -127,9 +127,14 @@ class Refinement
         /* remember tables, which will be added by refinements function */
         $already_joined = array();
         if (!empty($additional_joins)) $already_joined = $additional_joins;
+
+        // dd($options_scheme);
+
         foreach ($options_scheme as $option_key => $option_scheme) {
 
             try {
+
+                
 
                 $titles_key = $option_scheme['parent_table'] . "|" . $option_scheme['filter_column'];
 
@@ -226,17 +231,31 @@ class Refinement
                     }
                 }
 
-                // dd($option_query->toSql());
+
+                // PROBLEM_HERBS: filter_value_join is used for problem_herbs, we join the name table from herbs to get the name we want to show in the filters
+                if(isset($option_scheme['filter_value_join_table'])) {
+                    $option_name = $option_scheme['filter_value_join_table'].".".$option_scheme['filter_value_join_column'];
+                }
 
                 $option_query = $option_query->select(
                     \DB::raw("COUNT({$count_column}) as option_count, {$option_name} as option_name, {$option_id} as option_id")
-                )->groupBy($option_id)->orderBy($option_order_by);
+                )->groupBy($option_id);
 
-                // dd($option_id, $option_query->toSql());
+                // PROBLEM_HERBS: we also need to group on the new column, since the new table isn't in the groupby yet
+                if(isset($option_scheme['filter_value_join_table'])) {
+                    $option_query->groupBy($option_name);
+                }
+
+                $option_query->orderBy($option_order_by);
 
                 if(isset($option_scheme['havingRaw'])){
                     $option_query->havingRaw($option_scheme['havingRaw']);
                     // dd($option_query->toSql());
+                }
+
+                // PROBLEM_HERBS: finally, we need to join this additional table
+                if(isset($option_scheme['filter_value_join_table'])) {
+                    $option_query->join($option_scheme['filter_value_join_table'], $option_scheme['join_table'].".".$option_scheme['filter_value'], '=', $option_scheme['filter_value_join_table'].'.id');
                 }
 
                 /* finally getting records */
@@ -265,10 +284,6 @@ class Refinement
                     $options_records = array_unique($options_records, SORT_REGULAR);
                     // dd($options_records);
                 }
-
-                // if($option_scheme['parent_table'] == 'elements_maps') {
-                //     dd($option_query->toSql());
-                // }
 
                 foreach ($options_records as $option_record) {
                     if(is_null($option_record->option_name)){
