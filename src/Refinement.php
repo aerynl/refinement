@@ -134,7 +134,7 @@ class Refinement
 
             try {
 
-                
+
 
                 $titles_key = $option_scheme['parent_table'] . "|" . $option_scheme['filter_column'];
 
@@ -198,15 +198,12 @@ class Refinement
 
                 /* add specific for this option selects */
                 if (empty($option_scheme['join_table'])) {
-
                     $option_name = $option_scheme['parent_table'] . "." . $option_scheme['filter_value'];
                     $option_id = $option_scheme['parent_table'] . "." . $option_scheme['filter_value'];
 
                 } else {
-
                     $option_name = $option_scheme['join_table'] . "." . $option_scheme['filter_value'];
                     $option_id = $option_scheme['join_table'] . ".id";
-
                 }
 
                 if(isset($option_scheme['filter_type']) && $option_scheme['filter_type'] == 'text_column'){
@@ -227,7 +224,7 @@ class Refinement
 
                     // Fix specifically for element_maps which doesn't have an id column, should be generalized and added as an option
                     if($option_scheme['parent_table'] == 'elements_maps') {
-                        $count_column = $option_scheme['parent_table'].'.map_id';                        
+                        $count_column = $option_scheme['parent_table'].'.map_id';
                     }
                 }
 
@@ -235,6 +232,7 @@ class Refinement
                 // PROBLEM_HERBS: filter_value_join is used for problem_herbs, we join the name table from herbs to get the name we want to show in the filters
                 if(isset($option_scheme['filter_value_join_table'])) {
                     $option_name = $option_scheme['filter_value_join_table'].".".$option_scheme['filter_value_join_column'];
+                    $option_id = $option_scheme['filter_value_join_table'] . ".id";
                 }
 
                 $option_query = $option_query->select(
@@ -250,12 +248,12 @@ class Refinement
 
                 if(isset($option_scheme['havingRaw'])){
                     $option_query->havingRaw($option_scheme['havingRaw']);
-                    // dd($option_query->toSql());
                 }
 
                 // PROBLEM_HERBS: finally, we need to join this additional table
                 if(isset($option_scheme['filter_value_join_table'])) {
                     $option_query->join($option_scheme['filter_value_join_table'], $option_scheme['join_table'].".".$option_scheme['filter_value'], '=', $option_scheme['filter_value_join_table'].'.id');
+                    // dd($option_query->toSql());
                 }
 
                 /* finally getting records */
@@ -269,11 +267,11 @@ class Refinement
                 // }
 
                 $optionSortNumber = 1;
-                
+
                 // dd($option_scheme, $option_scheme['havingRaw']);
 
-                // When a refinedQuery with having (means havingRaw option query has been executed) in it is 
-                // active we get back the wrong results. To fix this we create a unique array of items from the 
+                // When a refinedQuery with having (means havingRaw option query has been executed) in it is
+                // active we get back the wrong results. To fix this we create a unique array of items from the
                 // results and count the values of duplicates so we can use this to create our refinements.
                 $havingCount = null;
                 if(strpos($option_query->toSql(), 'having') !== false && !isset($option_scheme['havingRaw'])) {
@@ -304,7 +302,7 @@ class Refinement
                         $option_record->option_name = trans('refinements.not_set');
                     }
 
-                    
+
                     if (empty($option_data['options'][$optionSortNumber]) || isset($option_scheme['havingRaw']) ){
                         $option_data['options'][$optionSortNumber] = array(
                             'name' => (is_null($option_record->option_name) && $option_scheme['filter_null'])
@@ -331,7 +329,7 @@ class Refinement
                         // Break the loop, we only need to do this for one iteration
                         break;
                     }
-                    
+
                     $optionSortNumber++;
                 }
 
