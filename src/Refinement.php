@@ -28,7 +28,7 @@ class Refinement
      * @param array $refinements_array - in case you want to filter not by session, but some specific array
      * @return \Illuminate\Database\Query\Builder $query - Query Builder object
      */
-    public static function getRefinedQuery($current_model, $session_name = "", $eager = array(), $additional_wheres = array(), $additional_joins = array(), $refinements_array = array(), $join_type='inner')
+    public static function getRefinedQuery($current_model, $session_name = "", $eager = array(), $additional_wheres = array(), $additional_joins = array(), $refinements_array = array(), $join_type='inner', $problem_herbs = false)
     {
         $current_instance = new $current_model;
         if (! $current_instance ) return false;
@@ -59,7 +59,7 @@ class Refinement
 
         foreach ($refinements as $refinement_table => $refinement) {
 
-            //hardcoded changes for the boom prokect
+            //hardcoded changes for the boom project
             if($refinement_table == 'maintenances' && $current_model != 'Maintenance'){
 
                 $query->leftJoin('maintenances', 'elements.id', '=', 'maintenances.element_id')->groupBy('elements.id', 'maintenances.element_id', 'maintenances.id');
@@ -72,7 +72,7 @@ class Refinement
 
             $refinement_model = self::getClassByTable($refinement_table);
 
-            if ($current_model != $refinement_model && !in_array($refinement_table, $already_joined)) {
+            if ($current_model != $refinement_model && !in_array($refinement_table, $already_joined) && !$problem_herbs) {
                 /* in this case we need to join the table to be able to filter by it */
                 $query = self::joinTableToQuery($query, $refinement_table, $current_table);
 
@@ -98,6 +98,8 @@ class Refinement
             }
 
         }
+
+        // dd($query->toSql());
 
         return $query;
     }
@@ -166,13 +168,23 @@ class Refinement
                     }
                 }
 
-                /* generate query with updated refinements */
-                $option_query = self::getRefinedQuery($current_model, "", $eager, $option_additional_wheres, $additional_joins, $option_refinements_array);
+                /* generate query with updated refinements, true in the end for no problem herbs */
+                $problem_herbs = false;
+                if(isset($option_scheme['filter_value_join_table'])) {
+                    $problem_herbs = true;
+                }
 
+                // Fix the selected options for Problem Herbs
+                if($problem_herbs && !empty($option_refinements_array[$option_scheme['join_table']])) {
+                    $selected_options_array = $option_refinements_array[$option_scheme['join_table']][$option_scheme['filter_value']];
+                }
+
+                $option_query = self::getRefinedQuery($current_model, "", $eager, $option_additional_wheres, $additional_joins, $option_refinements_array, 'inner', $problem_herbs);
                 // dd($option_query->toSql());
 
                 /* add option parent table if we haven't joined before */
                 $option_parent_model = self::getClassByTable($option_scheme['parent_table']);
+
                 if ($current_model != $option_parent_model && empty($option_refinements_array[$option_scheme['parent_table']])
                     && !in_array($option_scheme['parent_table'], $already_joined)) {
                     $join_type = (isset($option_scheme['join_type']) && in_array($option_scheme['join_type'], ['inner', 'left', 'right'])) ? $option_scheme['join_type'] : 'inner';
@@ -180,7 +192,6 @@ class Refinement
                     $already_joined[] = $option_scheme['parent_table'];
 
                 }
-
 
                 /* add option child table if needed */
                 if (!empty($option_scheme['join_table']) && $current_table != $option_scheme['join_table']) {
@@ -191,10 +202,17 @@ class Refinement
                         'right' => "{$option_scheme['join_table']}.id"
                     );
 
+                    if($option_scheme['join_table'] == "problem_herbs") {
+                        $join_statement = array(
+                            'left' => "{$option_scheme['parent_table']}.{$option_scheme['filter_column']}",
+                            'operand' => "=",
+                            'right' => "{$option_scheme['join_table']}.grasland_id"
+                        );
+                    }
+
                     $option_query = $option_query->leftJoin($option_scheme['join_table'],
                         $join_statement['left'], $join_statement['operand'], $join_statement['right']);
                 }
-
 
                 /* add specific for this option selects */
                 if (empty($option_scheme['join_table'])) {
@@ -251,13 +269,16 @@ class Refinement
                 }
 
                 // PROBLEM_HERBS: finally, we need to join this additional table
+                $ph = false;
                 if(isset($option_scheme['filter_value_join_table'])) {
                     $option_query->join($option_scheme['filter_value_join_table'], $option_scheme['join_table'].".".$option_scheme['filter_value'], '=', $option_scheme['filter_value_join_table'].'.id');
                     // dd($option_query->toSql());
+                    $ph = true;
                 }
 
                 /* finally getting records */
-                $options_records = self::getArrayFromQuery($option_query);
+                // @TODO Here problem herbs crashes when selected
+                $options_records = self::getArrayFromQuery($option_query, $ph);
 
                 $option_scheme['filter_null'] = isset($option_scheme['filter_null']) ? $option_scheme['filter_null'] : false;
 
@@ -304,6 +325,10 @@ class Refinement
 
 
                     if (empty($option_data['options'][$optionSortNumber]) || isset($option_scheme['havingRaw']) ){
+                        // if($ph) {
+                        //     dd($selected_options_array);
+                        // }
+
                         $option_data['options'][$optionSortNumber] = array(
                             'name' => (is_null($option_record->option_name) && $option_scheme['filter_null'])
                                 ? trans('refinements.not_set')
@@ -351,9 +376,13 @@ class Refinement
      * @param \Illuminate\Database\Query\Builder $query - Query Builder object
      * @return array $results - results of query
      */
-    private static function getArrayFromQuery($query)
+    private static function getArrayFromQuery($query, $ph = false)
     {
         $sql = $query->toSql();
+
+        // if($ph) {
+        //     dd($sql);
+        // }
 
         foreach ($query->getBindings() as $binding) {
             $value = is_numeric($binding) ? $binding : "'" . $binding . "'";
@@ -387,8 +416,10 @@ class Refinement
             $join_statement = $config_joins[$join_statement_key];
         }
 
-        /* if there is no record in config array for this table, skip it */
-        if (empty($join_statement)) return $query;
+        /* if there is no record in config array for this table, skip it or dump debug information */
+        if(empty($join_statement) && Config::get('app.debug')) {
+            dd("Can't find {$current_table}|{$join_table_name} or {$join_table_name}|{$current_table} in config. Please add it");
+        } else if (empty($join_statement)) return $query;
 
         if($current_table == 'maintenances' &&  $join_table_name == 'subsidies'){
             $type = 'left';
