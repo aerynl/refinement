@@ -60,7 +60,7 @@ class Refinement
         foreach ($refinements as $refinement_table => $refinement) {
 
             //hardcoded changes for the boom project
-            if($refinement_table == 'maintenances' && $current_model != 'Maintenance'){
+            if($refinement_table == 'maintenances' && $current_model != '\App\Models\Maintenance'){
 
                 $query->leftJoin('maintenances', 'elements.id', '=', 'maintenances.element_id')->groupBy('elements.id', 'maintenances.element_id', 'maintenances.id');
                 foreach ($additional_joins as $table){
@@ -180,7 +180,6 @@ class Refinement
                 }
 
                 $option_query = self::getRefinedQuery($current_model, "", $eager, $option_additional_wheres, $additional_joins, $option_refinements_array, 'inner', $problem_herbs);
-                // dd($option_query->toSql());
 
                 /* add option parent table if we haven't joined before */
                 $option_parent_model = self::getClassByTable($option_scheme['parent_table']);
