@@ -24,7 +24,7 @@ class RefinementServiceProvider extends ServiceProvider {
 	{
 		$this->mergeConfigFrom( __DIR__.'/../config/config.php', 'refinement');
 
-		$this->app['refinement'] = $this->app->share(function($app){
+		$this->app['refinement'] = $this->app->singleton('refinement', function(){
 			return new Refinement();
 		});
 	}
