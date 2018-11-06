@@ -58,10 +58,8 @@ class Refinement
         if (empty($refinements)) return $query;
 
         foreach ($refinements as $refinement_table => $refinement) {
-
             //hardcoded changes for the boom project
-            if($refinement_table == 'maintenances' && $current_model != '\App\Models\Maintenance'){
-
+            if($refinement_table == 'maintenances' && $current_model != 'App\Models\Maintenance'){
                 $query->leftJoin('maintenances', 'elements.id', '=', 'maintenances.element_id')->groupBy('elements.id', 'maintenances.element_id', 'maintenances.id');
                 foreach ($additional_joins as $table){
                     $query->groupBy($table.'.id');
