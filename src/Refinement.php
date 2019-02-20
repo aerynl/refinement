@@ -4,6 +4,7 @@ namespace Aerynl\Refinement;
 
 use Illuminate\Support\Pluralizer;
 use Config;
+use Carbon\Carbon;
 
 class Refinement
 {
@@ -79,17 +80,23 @@ class Refinement
 
             foreach ($refinement as $refinement_column => $refinement_values) {
 
+
+
                 $query->where(function ($query) use ($refinement_values, $refinement_table, $refinement_column) {
 
                     $text_columns = Config::get('refinement.filter_types.text_columns');
 
-                    foreach ($refinement_values as $value) {
+                    foreach ($refinement_values as $key => $value) {
+                        if($key !== 'date') {
+                            if(is_array($text_columns) && in_array($refinement_table.'|'.$refinement_column, $text_columns)){
+                                $value = base64_decode($value);
+                            }
 
-                        if(is_array($text_columns) && in_array($refinement_table.'|'.$refinement_column, $text_columns)){
-                            $value = base64_decode($value);
+                            $query->orWhere($refinement_table . '.' . $refinement_column, '=', $value < 0 ? null : $value);
+                        } else {
+                            // $value is an array consisting of [$operator, $date]
+                            $query->orWhere($refinement_table . '.' . $refinement_column, $value[0], Carbon::parse($value[1]));
                         }
-
-                        $query->orWhere($refinement_table . '.' . $refinement_column, '=', $value < 0 ? null : $value);
                     }
 
                 });
@@ -135,15 +142,32 @@ class Refinement
             try {
 
 
-
+                // The key by which we configure this refinement in the config and can refer to it
                 $titles_key = $option_scheme['parent_table'] . "|" . $option_scheme['filter_column'];
 
+                // Parse the option_scheme into an array that we use for showing our refinements on the page
                 $option_data = array(
                     'parent_table' => $option_scheme['parent_table'],
                     'column_name' => $option_scheme['filter_column'],
                     'title' => !empty($titles[$titles_key]) ? trans('refinements.'.$titles[$titles_key]) : ucfirst($option_scheme['filter_value']),
                     'options' => array()
                 );
+
+                if(isset($option_scheme['type'])) {
+                    $option_data['type'] = $option_scheme['type'];
+
+                    // If we're dealing with a date, we don't need options
+                    if($option_data['type'] === 'date') {
+                        $option_data['operator'] = $option_scheme['operator'];
+
+                        // Load a date that was set previously
+                        if (!empty($full_refinements_array[$option_scheme['parent_table']][$option_scheme['filter_column']])) {
+                            $option_data['options'] = $full_refinements_array[$option_scheme['parent_table']][$option_scheme['filter_column']];
+                        }
+                        $options_array[] = $option_data;
+                        continue;
+                    }
+                }
 
                 /* generating refinement array without our current option selected */
                 $option_refinements_array = $full_refinements_array;
