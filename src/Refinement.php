@@ -87,15 +87,22 @@ class Refinement
                     $text_columns = Config::get('refinement.filter_types.text_columns');
 
                     foreach ($refinement_values as $key => $value) {
-                        if($key !== 'date') {
+                        // Check if this is a strange type (date or relation_exists), in those cases make a different query
+                        if ($key === 'date') {
+                            // $value is an array consisting of [$operator, $date]
+                            $query->orWhere($refinement_table . '.' . $refinement_column, $value[0], Carbon::parse($value[1]));
+                        } else if($key === 'relation_exists') {
+                            if($value) {
+                                $query->orWhereRaw('"elements"."id" IN (SELECT "element_id" FROM "notes" WHERE "maintenance_id" IS NULL GROUP BY "element_id" HAVING COUNT(*) > 0)');
+                            } else {
+                                $query->orWhereRaw('"elements"."id" NOT IN (SELECT "element_id" FROM "notes" WHERE "maintenance_id" IS NULL AND "element_id" IS NOT NULL GROUP BY "element_id" HAVING COUNT(*) > 0)');
+                            }
+                        } else {
                             if(is_array($text_columns) && in_array($refinement_table.'|'.$refinement_column, $text_columns)){
                                 $value = base64_decode($value);
                             }
 
                             $query->orWhere($refinement_table . '.' . $refinement_column, '=', $value < 0 ? null : $value);
-                        } else {
-                            // $value is an array consisting of [$operator, $date]
-                            $query->orWhere($refinement_table . '.' . $refinement_column, $value[0], Carbon::parse($value[1]));
                         }
                     }
 
@@ -103,8 +110,6 @@ class Refinement
             }
 
         }
-
-        // dd($query->toSql());
 
         return $query;
     }
@@ -135,8 +140,6 @@ class Refinement
         $already_joined = array();
         if (!empty($additional_joins)) $already_joined = $additional_joins;
 
-        // dd($options_scheme);
-
         foreach ($options_scheme as $option_key => $option_scheme) {
 
             try {
@@ -153,6 +156,18 @@ class Refinement
                     'options' => array()
                 );
 
+                /* generating refinement array without our current option selected */
+                $option_refinements_array = $full_refinements_array;
+                $selected_options_array = array();
+                if (!empty($option_refinements_array[$option_scheme['parent_table']][$option_scheme['filter_column']])) {
+                    $selected_options_array = $option_refinements_array[$option_scheme['parent_table']][$option_scheme['filter_column']];
+                    unset($option_refinements_array[$option_scheme['parent_table']][$option_scheme['filter_column']]);
+                }
+
+                if (empty($option_refinements_array[$option_scheme['parent_table']])) {
+                    unset($option_refinements_array[$option_scheme['parent_table']]);
+                }
+
                 if(isset($option_scheme['type'])) {
                     $option_data['type'] = $option_scheme['type'];
 
@@ -167,18 +182,27 @@ class Refinement
                         $options_array[] = $option_data;
                         continue;
                     }
-                }
 
-                /* generating refinement array without our current option selected */
-                $option_refinements_array = $full_refinements_array;
-                $selected_options_array = array();
-                if (!empty($option_refinements_array[$option_scheme['parent_table']][$option_scheme['filter_column']])) {
-                    $selected_options_array = $option_refinements_array[$option_scheme['parent_table']][$option_scheme['filter_column']];
-                    unset($option_refinements_array[$option_scheme['parent_table']][$option_scheme['filter_column']]);
-                }
+                    if($option_data['type'] === 'relation_exists') {
+                        $option_data['type'] = $option_scheme['type'];
 
-                if (empty($option_refinements_array[$option_scheme['parent_table']])) {
-                    unset($option_refinements_array[$option_scheme['parent_table']]);
+                        $option_data["options"] = [
+                            "0" => [
+                                "name" => "Ja",
+                                "id" => ["relation_exists" => 1],
+                                "count" => 0,
+                                "checked" => array_key_exists("relation_exists", $selected_options_array) && $selected_options_array['relation_exists'] === 1,
+                            ],
+                            "1" => [
+                                "name" => "Nee",
+                                "id" => ["relation_exists" => 0],
+                                "count" => 0,
+                                "checked" => array_key_exists("relation_exists", $selected_options_array) && $selected_options_array['relation_exists'] === 0,
+                            ]
+                        ];
+                        $options_array[] = $option_data;
+                        continue;
+                    }
                 }
 
                 /* add additional wheres */
@@ -293,7 +317,6 @@ class Refinement
                 $ph = false;
                 if(isset($option_scheme['filter_value_join_table'])) {
                     $option_query->join($option_scheme['filter_value_join_table'], $option_scheme['join_table'].".".$option_scheme['filter_value'], '=', $option_scheme['filter_value_join_table'].'.id');
-                    // dd($option_query->toSql());
                     $ph = true;
                 }
 
@@ -310,8 +333,6 @@ class Refinement
 
                 $optionSortNumber = 1;
 
-                // dd($option_scheme, $option_scheme['havingRaw']);
-
                 // When a refinedQuery with having (means havingRaw option query has been executed) in it is
                 // active we get back the wrong results. To fix this we create a unique array of items from the
                 // results and count the values of duplicates so we can use this to create our refinements.
@@ -322,7 +343,6 @@ class Refinement
                     }, $options_records));
 
                     $options_records = array_unique($options_records, SORT_REGULAR);
-                    // dd($options_records);
                 }
 
                 foreach ($options_records as $option_record) {
@@ -346,10 +366,6 @@ class Refinement
 
 
                     if (empty($option_data['options'][$optionSortNumber]) || isset($option_scheme['havingRaw']) ){
-                        // if($ph) {
-                        //     dd($selected_options_array);
-                        // }
-
                         $option_data['options'][$optionSortNumber] = array(
                             'name' => (is_null($option_record->option_name) && $option_scheme['filter_null'])
                                 ? trans('refinements.not_set')
@@ -400,10 +416,6 @@ class Refinement
     private static function getArrayFromQuery($query, $ph = false)
     {
         $sql = $query->toSql();
-
-        // if($ph) {
-        //     dd($sql);
-        // }
 
         foreach ($query->getBindings() as $binding) {
             $value = is_numeric($binding) ? $binding : "'" . $binding . "'";
