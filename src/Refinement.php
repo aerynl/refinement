@@ -454,7 +454,7 @@ class Refinement
             dd("Can't find {$current_table}|{$join_table_name} or {$join_table_name}|{$current_table} in config. Please add it");
         } else if (empty($join_statement)) return $query;
 
-        if($current_table === 'maintenances' &&  $join_table_name === 'subsidies'){
+        if($current_table === 'maintenances' &&  $join_table_name === 'subsidies' || $current_table === 'elements' && $join_table_name === 'subsidies'){
             $type = 'left';
         } else if ($current_table === 'elements' && $join_table_name === 'maintenances') {
             return $query->join($join_table_name, $join_statement['left'], $join_statement['operand'], $join_statement['right'], $type)->groupBy('elements.id');
