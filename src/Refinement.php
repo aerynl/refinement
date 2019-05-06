@@ -90,7 +90,7 @@ class Refinement
                         // Check if this is a strange type (date or relation_exists), in those cases make a different query
                         if ($key === 'date') {
                             // $value is an array consisting of [$operator, $date]
-                            $query->orWhere($refinement_table . '.' . $refinement_column, $value[0], Carbon::parse($value[1]));
+                            $query->where($refinement_table . '.' . $refinement_column, $value[0], Carbon::parse($value[1]));
                         } else if($key === 'relation_exists') {
                             if($value) {
                                 $query->orWhereRaw('"elements"."id" IN (SELECT "element_id" FROM "notes" WHERE "maintenance_id" IS NULL GROUP BY "element_id" HAVING COUNT(*) > 0)');
