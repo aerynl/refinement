@@ -115,7 +115,7 @@ class Refinement
     }
 
     /**
-     * Is used for generating array of refinements options using passed scheme
+     * Is used for generating array of refinements options using passed scheme, the filters
      *
      * @param string $current_model - main model name. Its elements are being filtered.
      * @param array $options_scheme - scheme of options
@@ -234,7 +234,12 @@ class Refinement
                     && !in_array($option_scheme['parent_table'], $already_joined)) {
                     $join_type = (isset($option_scheme['join_type']) && in_array($option_scheme['join_type'], ['inner', 'left', 'right'])) ? $option_scheme['join_type'] : 'inner';
                     $option_query = self::joinTableToQuery($option_query, $option_scheme['parent_table'], $current_table, $join_type);
-                    $already_joined[] = $option_scheme['parent_table'];
+
+                    /**
+                     * @TODO: Uncommented because this gives issues with subsidies, do we really need this?
+                     * Remove later if it works fine like this
+                     */
+                    // $already_joined[] = $option_scheme['parent_table'];
 
                 }
 
@@ -320,9 +325,26 @@ class Refinement
                     $ph = true;
                 }
 
+
+                /**
+                 * DEBUG: Below is the query that gets filters for one of the options we loop over.
+                 * Use filter_column to determine which option to check for.
+                 */
+                // if($option_scheme['filter_column'] === 'afdeling') {
+                //     dd($option_query->toSql());
+                // }
+
                 /* finally getting records */
                 // @TODO Here problem herbs crashes when selected
                 $options_records = self::getArrayFromQuery($option_query, $ph);
+
+                /**
+                 * DEBUG: Below is the result of the query, if this code isn't reached,
+                 * this is due to the try/catch statement.
+                 */
+                // if($option_scheme['filter_column'] === 'afdeling') {
+                //     dd($option_records);
+                // }
 
                 $option_scheme['filter_null'] = isset($option_scheme['filter_null']) ? $option_scheme['filter_null'] : false;
 
