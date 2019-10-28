@@ -62,15 +62,16 @@ class Refinement
             //hardcoded changes for the boom project
             if($refinement_table == 'maintenances' && $current_model != 'App\Models\Maintenance'){
                 // Only join maintenances if it isn't already joined
-                if(!$additional_joins && !array_key_exists('maintenances', $additional_joins)) {
+                if(!$additional_joins || !in_array('maintenances', $additional_joins)) {
                     $query->leftJoin('maintenances', 'elements.id', '=', 'maintenances.element_id')->groupBy('elements.id', 'maintenances.element_id', 'maintenances.id');
-                } else if ($additional_joins && array_key_exists('maintenances', $additional_joins)) {
+                } else if ($additional_joins && in_array('maintenances', $additional_joins)) {
                     $query->groupBy('elements.id', 'maintenances.element_id', 'maintenances.id');
                 }
 
                 foreach ($additional_joins as $table){
                     $query->groupBy($table.'.id');
                 }
+
                 $query->havingRaw('COUNT(maintenances.element_id) < 1');
                 continue;
             }
